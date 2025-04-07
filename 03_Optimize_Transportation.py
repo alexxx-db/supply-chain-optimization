@@ -1,8 +1,4 @@
 # Databricks notebook source
-# MAGIC %md This notebook is available at https://github.com/databricks-industry-solutions/supply-chain-optimization. For more information about this solution accelerator, visit https://www.databricks.com/solutions/accelerators/supply-chain-distribution-optimization.
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # Transport Optimization
 
@@ -11,23 +7,23 @@
 # MAGIC %md
 # MAGIC *Prerequisite: Make sure to run 02_Fine_Grained_Demand_Forecasting before running this notebook.*
 # MAGIC
-# MAGIC In this notebook we solve the LP to optimize transport costs when shipping products from the plants to the distribution centers. Furthermore, we show how to scale to hundreds of thousands of products.
+# MAGIC In this notebook we solve the LP to optimize transport costs when shipping products from the plants to the distribution centers. Furthermore, we show how to scale to hunderd thousands of products.
 # MAGIC
 # MAGIC Key highlights for this notebook:
 # MAGIC - Use Databricks' collaborative and interactive notebook environment to find optimization procedure
-# MAGIC - Pandas UDFs (user-defined functions) can take your single-node data science code, and distribute it across multiple nodes 
+# MAGIC - Pandas UDFs (user-defined functions) can take your single-node data science code, and distribute it across different keys 
 # MAGIC
 # MAGIC More precisely we solve the following optimzation problem for each product.
 # MAGIC
 # MAGIC *Mathematical goal:*
-# MAGIC We have a set of manufacturing plants that distribute products to a set of distribution centers. The goal is to minimize overall shipment costs, i.e. we minimize w.r.t. quantities: <br/>
+# MAGIC We have a set of plants that distribute products to a set of distribution centers. The goal is to minimize overall shipment costs, i.e. we minimize w.r.t. quantities: <br/>
 # MAGIC cost_of_plant_1_to_distribution_center_1 * quantity_shipped_of_plant_1_to_distribution_center_1 <br/> \+ … \+ <br/>
 # MAGIC cost_of_plant_1_to_distribution_center_n * quantity_shipped_of_plant_n_to_distribution_center_m 
 # MAGIC
 # MAGIC *Mathematical constraints:*
-# MAGIC - Quantities shipped must be zero or positive integers
-# MAGIC - The sum of products shipped from one manufacturing plant does not exceed its maximum supply 
-# MAGIC - The sum of products shipped to each distribution center meets at least the demand forecasted 
+# MAGIC - quantities shipped must be zero or positive integers
+# MAGIC - summing up the quantities shipped from one plant does not exceed the maximum supply of the plant for each product
+# MAGIC - summing up the quantities shipped to each distribution center meets at least the demand as forecasted in the previous notebook
 
 # COMMAND ----------
 
@@ -39,11 +35,6 @@
 # COMMAND ----------
 
 # MAGIC %run ./_resources/00-setup $reset_all_data=false
-
-# COMMAND ----------
-
-print(cloud_storage_path)
-print(dbName)
 
 # COMMAND ----------
 
@@ -60,13 +51,18 @@ from pyspark.sql.types import *
 
 # COMMAND ----------
 
+spark.sql(f"""USE CATALOG {catalogName}""")
+spark.sql(f"""USE {dbName}""")
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Defining and solving the LP
 
 # COMMAND ----------
 
 # Demand for each distribution center, one line per product
-distribution_center_demand = spark.read.table(f"{dbName}.distribution_center_demand")
+distribution_center_demand = spark.read.table(f"distribution_center_demand")
 distribution_center_demand = distribution_center_demand.groupBy("Product").pivot("distribution_center").agg(f.first("demand").alias("demand"))
 for name in distribution_center_demand.schema.names:
   distribution_center_demand = distribution_center_demand.withColumnRenamed(name, name.replace("Distribution_Center", "Demand_Distribution_Center"))
@@ -76,7 +72,7 @@ display(distribution_center_demand)
 # COMMAND ----------
 
 # Plant supply, one line per product
-plant_supply = spark.read.table(f"{dbName}.supply_table")
+plant_supply = spark.read.table(f"supply_table")
 for name in plant_supply.schema.names:
   plant_supply = plant_supply.withColumnRenamed(name, name.replace("plant", "Supply_Plant"))
 plant_supply = plant_supply.sort("product")
@@ -85,7 +81,7 @@ display(plant_supply)
 # COMMAND ----------
 
 # Transportation cost table, one, line per product and plant
-transport_cost_table = spark.read.table(f"{dbName}.transport_cost_table")
+transport_cost_table = spark.read.table(f"transport_cost_table")
 for name in transport_cost_table.schema.names:
   transport_cost_table = transport_cost_table.withColumnRenamed(name, name.replace("Distribution_Center", "Cost_Distribution_Center"))
 display(transport_cost_table)
@@ -237,34 +233,4 @@ optimal_transport_df = (
 
 # COMMAND ----------
 
-shipment_recommendations_df_delta_path = os.path.join(cloud_storage_path, 'shipment_recommendations_df_delta')
-
-# COMMAND ----------
-
-# Write the data 
-optimal_transport_df.write \
-.mode("overwrite") \
-.format("delta") \
-.save(shipment_recommendations_df_delta_path)
-
-# COMMAND ----------
-
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.shipment_recommendations")
-spark.sql(f"CREATE TABLE {dbName}.shipment_recommendations USING DELTA LOCATION '{shipment_recommendations_df_delta_path}'")
-
-# COMMAND ----------
-
-display(spark.sql(f"SELECT * FROM {dbName}.shipment_recommendations"))
-
-# COMMAND ----------
-
-# MAGIC %md 
-# MAGIC &copy; 2023 Databricks, Inc. All rights reserved. The source in this notebook is provided subject to the Databricks License [https://databricks.com/db-license-source].  All included or referenced third party libraries are subject to the licenses set forth below.
-# MAGIC
-# MAGIC | library                                | description             | license    | source                                              |
-# MAGIC |----------------------------------------|-------------------------|------------|-----------------------------------------------------|
-# MAGIC | pulp                                 | A python Linear Programming API      | https://github.com/coin-or/pulp/blob/master/LICENSE        | https://github.com/coin-or/pulp                      |
-
-# COMMAND ----------
-
-
+optimal_transport_df.write.mode("overwrite").saveAsTable("shipment_recommendations")
