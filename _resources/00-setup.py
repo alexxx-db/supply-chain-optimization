@@ -10,7 +10,7 @@ import mlflow
 # COMMAND ----------
 
 dbName = "sco_data"
-catalogPrefix = "supply_chain_optimization_catalog"
+catalogPrefix = "rcg_demos"
 
 # COMMAND ----------
 
@@ -46,6 +46,10 @@ reset_all_bool = (reset_all == 'true')
 
 # COMMAND ----------
 
+print(reset_all_bool)
+
+# COMMAND ----------
+
 # print(f"run this code with reset_all = {reset_all_bool}")
 
 # COMMAND ----------
@@ -70,5 +74,3 @@ if reset_all_bool:
 # COMMAND ----------
 
 mlflow.set_experiment('/Users/{}/supply_chain_optimization'.format(current_user))
-
-# COMMAND ----------

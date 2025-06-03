@@ -56,13 +56,18 @@ spark.sql(f"""USE {dbName}""")
 
 # COMMAND ----------
 
+print(catalogName)
+print(dbName)
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Defining and solving the LP
 
 # COMMAND ----------
 
 # Demand for each distribution center, one line per product
-distribution_center_demand = spark.read.table(f"distribution_center_demand")
+distribution_center_demand = spark.read.table(f"rcg_demos_alex_barreto.sco_data.distribution_center_demand")
 distribution_center_demand = distribution_center_demand.groupBy("Product").pivot("distribution_center").agg(f.first("demand").alias("demand"))
 for name in distribution_center_demand.schema.names:
   distribution_center_demand = distribution_center_demand.withColumnRenamed(name, name.replace("Distribution_Center", "Demand_Distribution_Center"))
@@ -72,7 +77,7 @@ display(distribution_center_demand)
 # COMMAND ----------
 
 # Plant supply, one line per product
-plant_supply = spark.read.table(f"supply_table")
+plant_supply = spark.read.table(f"rcg_demos_alex_barreto.sco_data.supply_table")
 for name in plant_supply.schema.names:
   plant_supply = plant_supply.withColumnRenamed(name, name.replace("plant", "Supply_Plant"))
 plant_supply = plant_supply.sort("product")
@@ -81,7 +86,7 @@ display(plant_supply)
 # COMMAND ----------
 
 # Transportation cost table, one, line per product and plant
-transport_cost_table = spark.read.table(f"transport_cost_table")
+transport_cost_table = spark.read.table(f"rcg_demos_alex_barreto.sco_data.transport_cost_table")
 for name in transport_cost_table.schema.names:
   transport_cost_table = transport_cost_table.withColumnRenamed(name, name.replace("Distribution_Center", "Cost_Distribution_Center"))
 display(transport_cost_table)
@@ -210,9 +215,9 @@ def transport_optimization(pdf: pd.DataFrame) -> pd.DataFrame:
 # COMMAND ----------
 
 # Test the function
-#product_selection = "nail_1"
-# pdf = lp_table_all_info.filter(f.col("product")==product_selection).toPandas()
-# transport_optimization(pdf)
+product_selection = "nail_1"
+pdf = lp_table_all_info.filter(f.col("product")==product_selection).toPandas()
+transport_optimization(pdf)
 
 # COMMAND ----------
 
@@ -233,4 +238,4 @@ optimal_transport_df = (
 
 # COMMAND ----------
 
-optimal_transport_df.write.mode("overwrite").saveAsTable("shipment_recommendations")
+optimal_transport_df.write.mode("overwrite").saveAsTable("rcg_demos_alex_barreto.sco_data.shipment_recommendations")

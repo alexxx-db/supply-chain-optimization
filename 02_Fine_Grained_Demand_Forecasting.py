@@ -36,7 +36,7 @@ from pyspark.sql.types import *
 
 # COMMAND ----------
 
-demand_df = spark.read.table(f"part_level_demand")
+demand_df = spark.read.table(f"{catalogName}.{dbName}.part_level_demand")
 demand_df = demand_df.cache() # just for this example notebook
 
 # COMMAND ----------
@@ -46,9 +46,9 @@ display(demand_df)
 # COMMAND ----------
 
 # This is just to create one example for development and testing
-#example_product = demand_df.select("product").orderBy("product").limit(1).collect()[0].product
-#example_store = demand_df.select("store").orderBy("store").limit(1).collect()[0].store
-#pdf = demand_df.filter( (f.col("product") == example_product) & (f.col("store") == example_store)  ).toPandas()
+example_product = demand_df.select("product").orderBy("product").limit(1).collect()[0].product
+example_store = demand_df.select("store").orderBy("store").limit(1).collect()[0].store
+pdf = demand_df.filter( (f.col("product") == example_product) & (f.col("store") == example_store)  ).toPandas()
 
 # COMMAND ----------
 
@@ -121,7 +121,7 @@ assert demand_df.select('product', 'store').distinct().count() == forecast_df.co
 
 # COMMAND ----------
 
-distribution_center_to_store_mapping_table = spark.read.table(f"distribution_center_to_store_mapping_table")
+distribution_center_to_store_mapping_table = spark.read.table(f"rcg_demos_alex_barreto.sco_data.distribution_center_to_store_mapping_table")
 
 # COMMAND ----------
 
@@ -151,4 +151,4 @@ display(distribution_center_demand)
 
 # COMMAND ----------
 
-distribution_center_demand.write.mode("overwrite").saveAsTable("distribution_center_demand")
+distribution_center_demand.write.mode("overwrite").saveAsTable("rcg_demos_alex_barreto.sco_data.distribution_center_demand")

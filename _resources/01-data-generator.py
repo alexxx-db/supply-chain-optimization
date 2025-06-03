@@ -22,6 +22,7 @@ print(f"Running withreset_all_data = {reset_all_data}")
 # COMMAND ----------
 
 spark.sql(f"""USE CATALOG {catalogName}""")
+spark.sql(f"""CREATE SCHEMA IF NOT EXISTS {dbName}""")
 spark.sql(f"""USE {dbName}""")
 
 # COMMAND ----------
@@ -61,11 +62,11 @@ import matplotlib.pyplot as plt
 
 # COMMAND ----------
 
-n=3 # Number of replicates per product category
-ts_length_in_weeks = 104 # Length of a time series in weeks
-number_of_stores = 30
-n_distribution_centers = 5
-n_plants = 3 # Number of plants
+n=5 # Number of replicates per product category
+ts_length_in_weeks = 208 # Length of a time series in weeks
+number_of_stores = 60
+n_distribution_centers = 10
+n_plants = 7 # Number of plants
 
 # COMMAND ----------
 
@@ -274,12 +275,12 @@ display(demand_df)
 # COMMAND ----------
 
 # Test if demand is in a realistic range
-# display(demand_df.groupBy("product", "store").mean("demand"))
+display(demand_df.groupBy("product", "store").mean("demand"))
 
 # COMMAND ----------
 
 # Select a sepecific time series
-#display(demand_df.join(demand_df.sample(False, 1 / demand_df.count(), seed=0).limit(1).select("product", "store"), on=["product", "store"], how="inner"))
+display(demand_df.join(demand_df.sample(False, 1 / demand_df.count(), seed=0).limit(1).select("product", "store"), on=["product", "store"], how="inner"))
 
 # COMMAND ----------
 
@@ -288,19 +289,19 @@ display(demand_df)
 
 # COMMAND ----------
 
-demand_df.write.mode("overwrite").saveAsTable("part_level_demand")
+demand_df.write.mode("overwrite").saveAsTable("rcg_demos_alex_barreto.sco_data.part_level_demand")
 
 #### table not yet stored
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT * FROM part_level_demand
+# MAGIC SELECT * FROM rcg_demos_alex_barreto.sco_data.part_level_demand
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT COUNT(*) as row_count FROM part_level_demand
+# MAGIC SELECT COUNT(*) as row_count FROM rcg_demos_alex_barreto.sco_data.part_level_demand
 
 # COMMAND ----------
 
@@ -366,7 +367,7 @@ display(distribution_center_to_store_mapping_table)
 
 # COMMAND ----------
 
-distribution_center_to_store_mapping_table.write.mode("overwrite").saveAsTable("distribution_center_to_store_mapping_table")
+distribution_center_to_store_mapping_table.write.mode("overwrite").saveAsTable("rcg_demos_alex_barreto.sco_data.distribution_center_to_store_mapping_table")
 
 # COMMAND ----------
 
@@ -386,8 +387,8 @@ display(plants_df)
 
 # COMMAND ----------
 
-tmp_map_distribution_center_to_store = spark.read.table("distribution_center_to_store_mapping_table")
-distribution_center_df = (spark.read.table("part_level_demand").
+tmp_map_distribution_center_to_store = spark.read.table("rcg_demos_alex_barreto.sco_data.distribution_center_to_store_mapping_table")
+distribution_center_df = (spark.read.table("rcg_demos_alex_barreto.sco_data.part_level_demand").
                           select("product","store").
                           join(tmp_map_distribution_center_to_store, ["store"],  how="inner").
                           select("product","distribution_center").
@@ -404,7 +405,7 @@ display(plants_to_distribution_centers)
 # COMMAND ----------
 
 # For testing
-#pdf = plants_to_distribution_centers.filter( (f.col("plant") == "plant_1") & (f.col("product") == "drilling machine_1")).toPandas()
+pdf = plants_to_distribution_centers.filter( (f.col("plant") == "plant_1") & (f.col("product") == "drilling machine_1")).toPandas()
 
 # COMMAND ----------
 
@@ -455,7 +456,7 @@ display(transport_cost_table)
 
 # COMMAND ----------
 
-transport_cost_table.write.mode("overwrite").saveAsTable("transport_cost_table")
+transport_cost_table.write.mode("overwrite").saveAsTable("rcg_demos_alex_barreto.sco_data.transport_cost_table")
 
 # COMMAND ----------
 
@@ -465,7 +466,7 @@ transport_cost_table.write.mode("overwrite").saveAsTable("transport_cost_table")
 # COMMAND ----------
 
 # Create a list with all plants
-all_plants = spark.read.table(f"transport_cost_table").select("plant").distinct().collect()
+all_plants = spark.read.table(f"rcg_demos_alex_barreto.sco_data.transport_cost_table").select("plant").distinct().collect()
 all_plants = [row[0] for row in all_plants]
 
 # Create a list with fractions: Sum must be larger than one to fullfill the demands
@@ -476,8 +477,8 @@ fractions_lst.append(max( 0.4,  1 - sum(fractions_lst)))
 plant_supply_in_percentage_of_demand = {all_plants[i]: fractions_lst[i] for i in range(len(all_plants))}
 
 #Get maximum demand in history and sum up the demand of all distribution centers
-map_store_to_dc_tmp = spark.read.table(f"distribution_center_to_store_mapping_table")
-max_demands_per_dc = (spark.read.table(f"part_level_demand").
+map_store_to_dc_tmp = spark.read.table(f"rcg_demos_alex_barreto.sco_data.distribution_center_to_store_mapping_table")
+max_demands_per_dc = (spark.read.table(f"rcg_demos_alex_barreto.sco_data.part_level_demand").
                       groupBy("product", "store").
                       agg(f.max("demand").alias("demand")).
                       join(map_store_to_dc_tmp, ["store"], how = "inner"). # This join will not produce duplicates, as one store is assigned to exactly one distribution center
@@ -499,12 +500,12 @@ plant_supply = max_demands_per_dc.select("product", *all_plants).sort("product")
 
 # COMMAND ----------
 
-plant_supply.write.mode("overwrite").saveAsTable("supply_table")
+plant_supply.write.mode("overwrite").saveAsTable("rcg_demos_alex_barreto.sco_data.supply_table")
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT * FROM supply_table
+# MAGIC SELECT * FROM rcg_demos_alex_barreto.sco_data.supply_table
 
 # COMMAND ----------
 
